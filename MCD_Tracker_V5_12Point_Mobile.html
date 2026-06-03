@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>MCD Tracker</title>
+<style>
+  :root{
+    --bg:#05080a; --panel:#101820; --panel2:#15232d; --text:#f7f7f7;
+    --muted:#b8c0c8; --gold:#f5c400; --green:#18d35a; --red:#ff3b30; --line:#34424d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+  header{padding:18px 16px 14px;background:#030506;border-bottom:2px solid var(--gold);position:sticky;top:0;z-index:10}
+  h1{margin:0;font-size:1.45rem;line-height:1.1;text-transform:uppercase;letter-spacing:.5px}
+  .sub{color:var(--gold);font-weight:900;margin-top:5px;font-size:.86rem}
+  main{padding:12px;max-width:760px;margin:auto}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:13px;box-shadow:0 0 20px rgba(0,0,0,.35)}
+  .card h2{margin:0 0 12px;color:var(--gold);font-size:1rem;text-transform:uppercase}
+  label.field-label{display:block;margin:12px 0 6px;color:var(--muted);font-size:.76rem;text-transform:uppercase;font-weight:900;letter-spacing:.35px}
+  input[type="number"],input[type="date"],textarea{width:100%;min-height:52px;padding:12px;border-radius:12px;border:1px solid var(--line);background:#071014;color:var(--text);font-size:1.08rem}
+  textarea{min-height:86px;resize:vertical}
+  .quick-grid,.number-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .check{display:flex;align-items:center;gap:10px;min-height:62px;background:#071014;border:1px solid var(--line);border-radius:14px;padding:11px;font-size:.95rem;font-weight:900}
+  .check input{width:31px;height:31px;flex:0 0 auto;accent-color:var(--gold)}
+  .score-wrap{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .score{font-size:3.25rem;font-weight:1000;line-height:1}
+  .victory{color:var(--green)!important}.warning{color:var(--gold)!important}.fail{color:var(--red)!important}
+  .verdict{text-align:right;font-size:1.05rem;font-weight:1000;text-transform:uppercase}
+  .rings{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:12px}
+  .ring{background:#071014;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+  .ring .label{font-size:.7rem;color:var(--muted);text-transform:uppercase;font-weight:900}
+  .ring .num{font-size:1.35rem;font-weight:1000;margin-top:3px}
+  .small{color:var(--muted);font-size:.84rem;line-height:1.42;margin-top:10px}
+  .buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  button{min-height:54px;border:0;border-radius:13px;padding:12px;font-size:.9rem;font-weight:1000;cursor:pointer;text-transform:uppercase}
+  .primary{background:var(--gold);color:#111}.secondary{background:#26323c;color:var(--text)}.danger{background:var(--red);color:white}
+  .fullrow{grid-column:1/-1}
+  .history-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;min-width:860px;border-collapse:collapse;font-size:.86rem}
+  th,td{border-bottom:1px solid var(--line);padding:9px;text-align:left;white-space:nowrap}
+  th{color:var(--gold);text-transform:uppercase;font-size:.72rem}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;font-weight:900}
+  .p-green{background:rgba(25,212,90,.15);color:var(--green)}
+  .p-gold{background:rgba(245,196,0,.15);color:var(--gold)}
+  .p-red{background:rgba(255,59,48,.15);color:var(--red)}
+  .mini-score{position:fixed;right:12px;top:75px;z-index:30;background:#030506;border:1px solid currentColor;border-radius:999px;padding:8px 12px;font-weight:1000;box-shadow:0 0 18px rgba(0,0,0,.48)}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#111;border:1px solid var(--gold);color:var(--text);padding:11px 14px;border-radius:999px;font-weight:900;z-index:50;display:none;box-shadow:0 0 20px rgba(0,0,0,.55);max-width:90%;text-align:center}
+  .date-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+  .date-row button{min-width:94px}
+  .status-line{margin-top:10px;color:var(--muted);font-size:.8rem;font-weight:700}
+  @media(max-width:460px){
+    main{padding:10px}.quick-grid,.number-grid,.rings{grid-template-columns:1fr}
+    h1{font-size:1.25rem}.score{font-size:2.75rem}.mini-score{top:70px}
+    .date-row{grid-template-columns:1fr}.buttons{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>MCD Tracker</h1>
+  <div class="sub">Movement • Consistency • Discipline</div>
+</header>
+
+<div id="miniScore" class="mini-score fail">0/12</div>
+<div id="toast" class="toast">Saved</div>
+
+<main>
+  <section class="card">
+    <h2>Today’s Score</h2>
+    <div class="score-wrap">
+      <div id="score" class="score fail">0/12</div>
+      <div id="verdict" class="verdict fail">Fix Tomorrow</div>
+    </div>
+
+    <div class="rings">
+      <div class="ring"><div class="label">Discipline</div><div id="disciplineScore" class="num fail">0/4</div></div>
+      <div class="ring"><div class="label">Movement</div><div id="movementScore" class="num fail">0/4</div></div>
+      <div class="ring"><div class="label">Nutrition</div><div id="nutritionScore" class="num fail">0/4</div></div>
+    </div>
+
+    <div id="saveStatus" class="status-line">Auto-save is on.</div>
+    <div class="small">11-12 = green. 8-10 = yellow. 7 or below = red.</div>
+  </section>
+
+  <section class="card">
+    <h2>Date</h2>
+    <div class="date-row">
+      <div>
+        <label class="field-label" for="date">Date</label>
+        <input id="date" type="date">
+      </div>
+      <button class="secondary" id="todayBtn" type="button">Today</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Discipline — 4 Points</h2>
+    <div class="quick-grid">
+      <label class="check"><input id="wake" type="checkbox"><span>Wake up 5:45</span></label>
+      <label class="check"><input id="noTouch" type="checkbox"><span>No forbidden foods</span></label>
+      <label class="check"><input id="kitchen" type="checkbox"><span>Kitchen closed 8 PM</span></label>
+      <label class="check"><input id="workout" type="checkbox"><span>Workout completed</span></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Movement — 4 Points</h2>
+    <div class="quick-grid">
+      <label class="check"><input id="morningCardio" type="checkbox"><span>Morning cardio done</span></label>
+      <label class="check"><input id="mobility" type="checkbox"><span>Mobility / stretching</span></label>
+    </div>
+
+    <div class="number-grid">
+      <div><label class="field-label" for="steps">Steps</label><input id="steps" type="number" inputmode="numeric" placeholder="10000"></div>
+      <div><label class="field-label" for="active">Active calories</label><input id="active" type="number" inputmode="numeric" placeholder="1000"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Nutrition — 4 Points</h2>
+    <div class="number-grid">
+      <div><label class="field-label" for="weight">Weight entered</label><input id="weight" type="number" step="0.1" inputmode="decimal" placeholder="260.0"></div>
+      <div><label class="field-label" for="calories">Calories eaten</label><input id="calories" type="number" inputmode="numeric" placeholder="1800-2200"></div>
+      <div><label class="field-label" for="protein">Protein grams</label><input id="protein" type="number" inputmode="numeric" placeholder="180+"></div>
+      <div><label class="field-label" for="water">Water oz</label><input id="water" type="number" inputmode="numeric" placeholder="100+"></div>
+    </div>
+
+    <label class="field-label" for="notes">Notes</label>
+    <textarea id="notes" placeholder="What worked? What broke? What gets fixed tomorrow?"></textarea>
+
+    <div class="buttons">
+      <button class="primary" id="saveBtn" type="button">Save Now</button>
+      <button class="secondary" id="loadBtn" type="button">Load Date</button>
+      <button class="secondary" id="exportBtn" type="button">Export CSV</button>
+      <button class="secondary" id="clearBtn" type="button">Clear Form</button>
+      <button class="danger fullrow" id="resetBtn" type="button">Reset All Data</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Saved History</h2>
+    <div class="history-scroll">
+      <table id="history">
+        <thead>
+          <tr>
+            <th>Date</th><th>Total</th><th>D</th><th>M</th><th>N</th><th>Weight</th><th>Calories</th><th>Protein</th><th>Water</th><th>Active</th><th>Steps</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="small">Tap a row to reload that date. Same day updates all day. New date creates a new entry.</div>
+  </section>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  const KEY = "mcdTracker_v5_12point";
+  const OLD_KEYS = ["executiveAthleteTracker_v4_mobile_autosave","executiveAthleteTracker_v3_fixed","executiveAthleteTracker_v2_mobile","executiveAthleteTracker_v1"];
+  const ids = ["date","wake","noTouch","kitchen","workout","morningCardio","mobility","steps","active","weight","calories","protein","water","notes"];
+  const el = id => document.getElementById(id);
+  let saveTimer = null;
+
+  function todayISO(){
+    const d = new Date();
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0,10);
+  }
+
+  function migrate(){
+    if(localStorage.getItem(KEY)) return;
+    for(const oldKey of OLD_KEYS){
+      const old = localStorage.getItem(oldKey);
+      if(old){ localStorage.setItem(KEY, old); return; }
+    }
+  }
+
+  function getData(){
+    try { return JSON.parse(localStorage.getItem(KEY) || "[]"); }
+    catch(e){ return []; }
+  }
+
+  function setData(data){ localStorage.setItem(KEY, JSON.stringify(data)); }
+
+  function numeric(id){
+    const val = parseFloat(el(id).value);
+    return Number.isFinite(val) ? val : 0;
+  }
+
+  function hasValue(id){ return String(el(id).value || "").trim().length > 0; }
+
+  function currentEntry(){
+    const e = {
+      date: el("date").value || todayISO(),
+      wake: el("wake").checked,
+      noTouch: el("noTouch").checked,
+      kitchen: el("kitchen").checked,
+      workout: el("workout").checked,
+      morningCardio: el("morningCardio").checked,
+      mobility: el("mobility").checked,
+      steps: numeric("steps"),
+      active: numeric("active"),
+      weight: el("weight").value.trim(),
+      calories: el("calories").value.trim(),
+      caloriesNum: numeric("calories"),
+      protein: numeric("protein"),
+      water: numeric("water"),
+      notes: el("notes").value.trim()
+    };
+
+    const scores = calcScores(e);
+    e.discipline = scores.discipline;
+    e.movement = scores.movement;
+    e.nutrition = scores.nutrition;
+    e.score = scores.total;
+    e.status = statusText(e.score);
+    e.updatedAt = new Date().toLocaleString();
+    return e;
+  }
+
+  function calcScores(e){
+    let d = 0, m = 0, n = 0;
+
+    if(e.wake) d++;
+    if(e.noTouch) d++;
+    if(e.kitchen) d++;
+    if(e.workout) d++;
+
+    if(e.steps >= 10000) m++;
+    if(e.active >= 1000) m++;
+    if(e.morningCardio) m++;
+    if(e.mobility) m++;
+
+    if(e.protein >= 180) n++;
+    if(e.water >= 100) n++;
+    if(e.caloriesNum >= 1600 && e.caloriesNum <= 2400) n++;
+    if(e.weight !== "") n++;
+
+    return {discipline:d, movement:m, nutrition:n, total:d+m+n};
+  }
+
+  function statusText(score){
+    if(score >= 11) return "Victory";
+    if(score >= 8) return "Acceptable";
+    return "Fix Tomorrow";
+  }
+
+  function colorClass(score){
+    if(score >= 11) return "victory";
+    if(score >= 8) return "warning";
+    return "fail";
+  }
+
+  function groupClass(score){
+    if(score === 4) return "victory";
+    if(score >= 2) return "warning";
+    return "fail";
+  }
+
+  function updateScore(){
+    const e = currentEntry();
+    const cls = colorClass(e.score);
+
+    el("score").textContent = e.score + "/12";
+    el("miniScore").textContent = e.score + "/12";
+    el("verdict").textContent = e.status;
+
+    el("score").className = "score " + cls;
+    el("miniScore").className = "mini-score " + cls;
+    el("verdict").className = "verdict " + cls;
+
+    el("disciplineScore").textContent = e.discipline + "/4";
+    el("movementScore").textContent = e.movement + "/4";
+    el("nutritionScore").textContent = e.nutrition + "/4";
+    el("disciplineScore").className = "num " + groupClass(e.discipline);
+    el("movementScore").className = "num " + groupClass(e.movement);
+    el("nutritionScore").className = "num " + groupClass(e.nutrition);
+  }
+
+  function saveDay(showToast){
+    const e = currentEntry();
+    const data = getData().filter(x => x.date !== e.date);
+    data.push(e);
+    data.sort((a,b) => b.date.localeCompare(a.date));
+    setData(data);
+    updateScore();
+    renderHistory();
+    el("saveStatus").textContent = "Saved " + e.date + " at " + new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    if(showToast) toast("Saved — " + e.score + "/12");
+  }
+
+  function scheduleAutoSave(){
+    updateScore();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveDay(false), 350);
+  }
+
+  function loadDate(){
+    const date = el("date").value || todayISO();
+    const found = getData().find(x => x.date === date);
+    if(found){
+      fillForm(found);
+      toast("Loaded " + date);
+    } else {
+      clearForm(false);
+      el("date").value = date;
+      toast("New entry for " + date);
+    }
+    updateScore();
+  }
+
+  function fillForm(e){
+    el("date").value = e.date || todayISO();
+    ["wake","noTouch","kitchen","workout","morningCardio","mobility"].forEach(k => el(k).checked = !!e[k]);
+    ["steps","active","weight","calories","protein","water","notes"].forEach(k => el(k).value = e[k] ?? "");
+  }
+
+  function clearForm(resetDate){
+    ids.forEach(id => {
+      const node = el(id);
+      if(node.type === "checkbox") node.checked = false;
+      else node.value = "";
+    });
+    if(resetDate !== false) el("date").value = todayISO();
+    updateScore();
+  }
+
+  function loadToday(){
+    el("date").value = todayISO();
+    loadDate();
+  }
+
+  function renderHistory(){
+    const tbody = document.querySelector("#history tbody");
+    tbody.innerHTML = "";
+    const data = getData();
+
+    if(!data.length){
+      tbody.innerHTML = '<tr><td colspan="12">No saved entries yet.</td></tr>';
+      return;
+    }
+
+    data.forEach(e => {
+      const cls = e.score >= 11 ? "p-green" : e.score >= 8 ? "p-gold" : "p-red";
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${escapeHtml(e.date || "")}</td>
+        <td>${e.score ?? 0}/12</td>
+        <td>${e.discipline ?? 0}/4</td>
+        <td>${e.movement ?? 0}/4</td>
+        <td>${e.nutrition ?? 0}/4</td>
+        <td>${escapeHtml(e.weight || "")}</td>
+        <td>${escapeHtml(e.calories || "")}</td>
+        <td>${escapeHtml(e.protein ?? "")}</td>
+        <td>${escapeHtml(e.water ?? "")}</td>
+        <td>${escapeHtml(e.active ?? "")}</td>
+        <td>${escapeHtml(e.steps ?? "")}</td>
+        <td><span class="pill ${cls}">${escapeHtml(e.status || "")}</span></td>
+      `;
+      row.addEventListener("click", () => { fillForm(e); updateScore(); window.scrollTo({top:0,behavior:"smooth"}); });
+      tbody.appendChild(row);
+    });
+  }
+
+  function exportCSV(){
+    const data = getData();
+    const header = ["date","score","status","discipline","movement","nutrition","wake","noTouch","kitchen","workout","morningCardio","mobility","steps","active","weight","calories","protein","water","notes","updatedAt"];
+    const rows = [header.join(",")].concat(data.map(e => header.map(k => csv(e[k])).join(",")));
+    const blob = new Blob([rows.join("\n")], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "MCD_Tracker.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetAll(){
+    if(confirm("This deletes all saved MCD Tracker data in this browser. Continue?")){
+      localStorage.removeItem(KEY);
+      clearForm(true);
+      renderHistory();
+      toast("All tracker data reset");
+    }
+  }
+
+  function csv(value){ return '"' + String(value ?? "").replaceAll('"','""') + '"'; }
+
+  function escapeHtml(value){
+    return String(value).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[c]));
+  }
+
+  let toastTimer;
+  function toast(message){
+    const t = el("toast");
+    t.textContent = message;
+    t.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.style.display = "none"; }, 1600);
+  }
+
+  function wire(){
+    ids.forEach(id => {
+      const node = el(id);
+      node.addEventListener("input", scheduleAutoSave);
+      node.addEventListener("change", scheduleAutoSave);
+      node.addEventListener("blur", () => saveDay(false));
+    });
+
+    el("saveBtn").addEventListener("click", () => saveDay(true));
+    el("loadBtn").addEventListener("click", loadDate);
+    el("todayBtn").addEventListener("click", loadToday);
+    el("clearBtn").addEventListener("click", () => { clearForm(true); saveDay(true); });
+    el("exportBtn").addEventListener("click", exportCSV);
+    el("resetBtn").addEventListener("click", resetAll);
+
+    setInterval(() => {
+      const now = todayISO();
+      if(document.visibilityState === "visible" && el("date").value !== now){
+        saveDay(false);
+        clearForm(false);
+        el("date").value = now;
+        updateScore();
+        toast("New day started");
+      }
+    }, 60000);
+  }
+
+  function init(){
+    migrate();
+    el("date").value = todayISO();
+    const today = getData().find(x => x.date === todayISO());
+    if(today) fillForm(today);
+    renderHistory();
+    updateScore();
+    wire();
+  }
+
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+
+})();
+</script>
+</body>
+</html>
